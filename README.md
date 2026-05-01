@@ -67,6 +67,7 @@ O instalador sera criado em `dist/installer/` com a logo aplicada no assistente 
 
 - O arquivo `.github/workflows/release.yml` publica uma nova release a cada push na branch `main`.
 - O workflow gera uma versao no formato `MAJOR.MINOR.RUN_NUMBER`, monta o instalador no Windows e anexa o `.exe` da instalacao na release.
+- Edite o arquivo `.github/release-notes.md` antes de publicar a proxima versao para definir o texto que aparecera em "Novidades desta versao" apos a atualizacao.
 - O upload da release usa o `GITHUB_TOKEN` padrao do Actions, entao nao precisa criar segredo extra para publicar.
 - Para esse workflow funcionar no GitHub, este projeto precisa estar na raiz de um repositorio proprio, com a pasta `.github/workflows` versionada nesse mesmo repo.
 

@@ -31,7 +31,14 @@ try {
 
     Invoke-NativeCommand -Description "Atualizacao do pip" -Command { & $Python -m pip install --upgrade pip }
     Invoke-NativeCommand -Description "Instalacao das dependencias" -Command { & $Python -m pip install -r requirements.txt }
-    $metadataJson = & $Python .\scripts\generate_build_metadata.py --version $BuildVersion --repository $GitHubRepository
+    $metadataArgs = @('.\scripts\generate_build_metadata.py')
+    if ($BuildVersion) {
+        $metadataArgs += @('--version', $BuildVersion)
+    }
+    if ($GitHubRepository) {
+        $metadataArgs += @('--repository', $GitHubRepository)
+    }
+    $metadataJson = & $Python @metadataArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Geracao do metadata de build falhou com codigo de saida $LASTEXITCODE."
     }

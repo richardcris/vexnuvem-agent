@@ -43,7 +43,7 @@ class UpdateCheckResult:
 
 
 class GitHubUpdateService:
-    API_TEMPLATE = "https://api.github.com/repos/{repository}/releases/latest"
+    API_TEMPLATE = "https://api.github.com/repos/{repository}/releases?per_page=10"
 
     def __init__(self, logger, timeout: float = 10.0) -> None:
         self.logger = logger
@@ -206,9 +206,20 @@ class GitHubUpdateService:
             raise UpdateCheckError(f"Nao foi possivel consultar a release mais recente em {repository}.") from exc
 
         payload = response.json()
-        if not isinstance(payload, dict):
+        if not isinstance(payload, list):
             raise UpdateCheckError("Resposta invalida do GitHub ao consultar releases.")
-        return payload
+
+        for release in payload:
+            if not isinstance(release, dict):
+                continue
+            if release.get("draft") or release.get("prerelease"):
+                continue
+            return release
+
+        raise UpdateCheckError(
+            f"Nao foi possivel localizar uma release publicada em {repository}. "
+            "Verifique se ja existe uma release publicada no GitHub."
+        )
 
     @staticmethod
     def _normalize_repository(raw_value: str) -> str:

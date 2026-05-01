@@ -69,10 +69,58 @@ jobs:
           name: vexnuvem-installer
           path: dist/installer/${{ steps.meta.outputs.installer }}
 
+      - name: Prepare Release Notes
+        id: release_notes
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          $repository = '${{ github.repository }}'
+          $currentTag = '${{ steps.meta.outputs.tag }}'
+          $currentVersion = '${{ steps.meta.outputs.version }}'
+          $template = Get-Content '.github/release-notes.md' -Raw
+
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'User-Agent' = 'github-actions'
+          }
+
+          $previousTag = ''
+          try {
+            $releases = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repository/releases?per_page=1" -Method Get
+            if ($releases -is [array] -and $releases.Count -gt 0) {
+              $previousTag = [string]$releases[0].tag_name
+            }
+            elseif ($releases.tag_name) {
+              $previousTag = [string]$releases.tag_name
+            }
+          }
+          catch {
+            Write-Host 'Nao foi possivel consultar a release anterior. Sera usado um link de commits para esta versao.'
+          }
+
+          if ($previousTag) {
+            $compareUrl = "https://github.com/$repository/compare/$previousTag...$currentTag"
+          }
+          else {
+            $compareUrl = "https://github.com/$repository/commits/$currentTag"
+          }
+
+          $body = $template.Replace('{{VERSION}}', $currentVersion)
+          $body = $body.Replace('{{TAG}}', $currentTag)
+          $body = $body.Replace('{{REPOSITORY}}', $repository)
+          $body = $body.Replace('{{COMPARE_URL}}', $compareUrl)
+
+          $delimiter = [guid]::NewGuid().ToString()
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "body<<$delimiter"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value $body
+          Add-Content -Path $env:GITHUB_OUTPUT -Value $delimiter
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: VexNuvem Agent ${{ steps.meta.outputs.version }}
-          generate_release_notes: true
+          body: ${{ steps.release_notes.outputs.body }}
           files: dist/installer/${{ steps.meta.outputs.installer }}

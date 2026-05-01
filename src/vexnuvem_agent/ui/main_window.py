@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
     QTableWidget,
     QTableWidgetItem,
+    QTextBrowser,
     QTimeEdit,
     QVBoxLayout,
     QWidget,
@@ -49,6 +50,12 @@ from ..protection_service import RansomwareProtectionService
 from ..scheduler_service import SchedulerService
 from ..startup_service import apply_start_with_windows, is_windows_startup_supported
 from ..storage import BackupHistoryStore
+from ..update_state import (
+    PendingUpdateNotice,
+    clear_pending_update_notice,
+    load_pending_update_notice,
+    save_pending_update_notice,
+)
 from ..update_service import GitHubUpdateService, UpdateInfo, UpdateCheckResult
 from .auth_dialog import AccessLoginDialog, create_logo_label, load_logo_pixmap
 
@@ -168,6 +175,7 @@ class UpdateCheckWorker(QThread):
 
 
 class UpdateInstallWorker(QThread):
+    download_progress = Signal(int, int)
     install_ready = Signal(object, str, bool)
     install_failed = Signal(str, bool)
 
@@ -186,10 +194,104 @@ class UpdateInstallWorker(QThread):
 
     def run(self) -> None:
         try:
-            installer_path = self.update_service.download_installer(self.info, self.download_dir)
+            installer_path = self.update_service.download_installer(
+                self.info,
+                self.download_dir,
+                progress_callback=self._forward_progress,
+            )
             self.install_ready.emit(self.info, str(installer_path), self.manual)
         except Exception as exc:
             self.install_failed.emit(str(exc), self.manual)
+
+    def _forward_progress(self, received_bytes: int, total_bytes: int) -> None:
+        self.download_progress.emit(received_bytes, total_bytes)
+
+
+class UpdateProgressDialog(QDialog):
+    def __init__(self, version: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.version = version
+        self.setWindowTitle("Atualizando o VexNuvem Agent")
+        self.setModal(True)
+        self.setMinimumWidth(460)
+
+        title_label = QLabel(f"Atualizando para a versao {version}")
+        title_label.setFont(QFont("Bahnschrift", 15, QFont.Weight.Bold))
+        self.status_label = QLabel("Preparando download da nova versao...")
+        self.status_label.setWordWrap(True)
+        self.progress_label = QLabel("Aguarde enquanto o instalador e baixado.")
+        self.progress_label.setWordWrap(True)
+        self.progress_label.setProperty("subtle", True)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(22, 22, 22, 22)
+        layout.setSpacing(12)
+        layout.addWidget(title_label)
+        layout.addWidget(self.status_label)
+        layout.addWidget(self.progress_bar)
+        layout.addWidget(self.progress_label)
+
+    def update_download(self, received_bytes: int, total_bytes: int) -> None:
+        if total_bytes > 0:
+            percent = max(0, min(int((received_bytes / total_bytes) * 100), 100))
+            self.progress_bar.setRange(0, 100)
+            self.progress_bar.setValue(percent)
+            self.progress_label.setText(
+                f"{format_bytes(received_bytes)} de {format_bytes(total_bytes)} baixados"
+            )
+            return
+
+        self.progress_bar.setRange(0, 0)
+        if received_bytes > 0:
+            self.progress_label.setText(f"{format_bytes(received_bytes)} baixados")
+
+    def show_installing(self) -> None:
+        self.status_label.setText("Download concluido. Abrindo o instalador da nova versao...")
+        self.progress_bar.setRange(0, 0)
+        self.progress_label.setText(
+            "Uma janela do instalador sera exibida para mostrar o progresso da instalacao."
+        )
+
+
+class WhatsNewDialog(QDialog):
+    def __init__(self, notice: PendingUpdateNotice, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.notice = notice
+        self.setWindowTitle("Novidades desta versao")
+        self.resize(720, 520)
+        self.setModal(True)
+
+        title_label = QLabel(f"VexNuvem Agent atualizado para {notice.version}")
+        title_label.setFont(QFont("Bahnschrift", 16, QFont.Weight.Bold))
+
+        subtitle_parts: list[str] = []
+        if notice.previous_version:
+            subtitle_parts.append(f"Versao anterior: {notice.previous_version}")
+        if notice.published_at:
+            subtitle_parts.append(f"Release publicada em: {notice.published_at}")
+        subtitle_label = QLabel(" | ".join(subtitle_parts) or "Confira as melhorias desta versao abaixo.")
+        subtitle_label.setWordWrap(True)
+        subtitle_label.setProperty("subtle", True)
+
+        notes_view = QTextBrowser()
+        notes_view.setOpenExternalLinks(True)
+        notes_view.setMarkdown(notice.notes or "## Novidades\n\nSem observacoes detalhadas nesta release.")
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        ok_button = buttons.button(QDialogButtonBox.StandardButton.Ok)
+        ok_button.setText("Entendi")
+        buttons.accepted.connect(self.accept)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(22, 22, 22, 22)
+        layout.setSpacing(12)
+        layout.addWidget(title_label)
+        layout.addWidget(subtitle_label)
+        layout.addWidget(notes_view, 1)
+        layout.addWidget(buttons)
 
 
 class FtpServerDialog(QDialog):
@@ -285,6 +387,7 @@ class MainWindow(QMainWindow):
         self.logo_pixmap = load_logo_pixmap()
         self.update_worker: UpdateCheckWorker | None = None
         self.update_install_worker: UpdateInstallWorker | None = None
+        self.update_progress_dialog: UpdateProgressDialog | None = None
         self.update_prompted_version = ""
         self.pending_update_check_after_startup_backup = False
 
@@ -301,6 +404,7 @@ class MainWindow(QMainWindow):
         self.scheduler_service.apply_config(self.config)
         self.protection_service.apply_config(self.config)
         self._schedule_startup_actions()
+        self._schedule_post_update_notice()
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -1373,16 +1477,23 @@ class MainWindow(QMainWindow):
 
         self._set_update_status(f"Baixando a versao {info.latest_version} para atualizar automaticamente...")
         download_dir = TEMP_DIR / "updates"
+        self._ensure_update_progress_dialog(info)
         self.update_install_worker = UpdateInstallWorker(
             update_service=self.update_service,
             info=info,
             download_dir=download_dir,
             manual=manual,
         )
+        self.update_install_worker.download_progress.connect(self._handle_update_install_progress)
         self.update_install_worker.install_ready.connect(self._handle_update_install_ready)
         self.update_install_worker.install_failed.connect(self._handle_update_install_failure)
         self.update_install_worker.finished.connect(self._handle_update_install_finished)
         self.update_install_worker.start()
+
+    def _handle_update_install_progress(self, received_bytes: int, total_bytes: int) -> None:
+        if self.update_progress_dialog is None:
+            return
+        self.update_progress_dialog.update_download(received_bytes, total_bytes)
 
     def _handle_update_install_ready(self, info: UpdateInfo, installer_path: str, manual: bool) -> None:
         try:
@@ -1392,8 +1503,20 @@ class MainWindow(QMainWindow):
                 current_pid=os.getpid(),
                 restart_executable=sys.executable,
             )
+            save_pending_update_notice(
+                PendingUpdateNotice(
+                    version=info.latest_version,
+                    previous_version=info.current_version,
+                    notes=info.notes,
+                    published_at=info.published_at,
+                    release_url=info.release_url,
+                )
+            )
+            if self.update_progress_dialog is not None:
+                self.update_progress_dialog.show_installing()
             self.update_service.launch_upgrade_launcher(launcher_path)
         except Exception as exc:
+            clear_pending_update_notice()
             self._handle_update_install_failure(str(exc), manual)
             return
 
@@ -1415,12 +1538,15 @@ class MainWindow(QMainWindow):
     def _handle_update_install_failure(self, message: str, manual: bool) -> None:
         failure_message = f"Falha ao preparar a atualizacao automatica: {message}"
         self.logger.warning(failure_message)
+        self._close_update_progress_dialog()
         self._set_update_status(failure_message)
         if manual:
             QMessageBox.warning(self, "VexNuvem", failure_message)
 
     def _handle_update_install_finished(self) -> None:
         self.update_install_worker = None
+        if not self._force_close:
+            self._close_update_progress_dialog()
 
     def _set_update_status(self, message: str) -> None:
         if hasattr(self, "sidebar_update_label"):
@@ -1450,6 +1576,40 @@ class MainWindow(QMainWindow):
             return
         self.logger.info("Disparando backup automatico pendente ao iniciar com o Windows")
         self.start_backup("automatic-startup")
+
+    def _schedule_post_update_notice(self) -> None:
+        QTimer.singleShot(900, self._show_pending_update_notice)
+
+    def _show_pending_update_notice(self) -> None:
+        pending_notice = load_pending_update_notice()
+        if pending_notice is None:
+            return
+
+        comparison = self.update_service._compare_versions(self.app_version, pending_notice.version)
+        if comparison < 0:
+            return
+        if comparison > 0:
+            clear_pending_update_notice()
+            return
+        if not self.isVisible() and self.started_from_windows_startup and self.config.run_in_background:
+            return
+
+        clear_pending_update_notice()
+        WhatsNewDialog(pending_notice, self).exec()
+
+    def _ensure_update_progress_dialog(self, info: UpdateInfo) -> None:
+        if self.update_progress_dialog is None:
+            self.update_progress_dialog = UpdateProgressDialog(info.latest_version, self)
+        self.update_progress_dialog.show()
+        self.update_progress_dialog.raise_()
+        self.update_progress_dialog.activateWindow()
+
+    def _close_update_progress_dialog(self) -> None:
+        if self.update_progress_dialog is None:
+            return
+        self.update_progress_dialog.close()
+        self.update_progress_dialog.deleteLater()
+        self.update_progress_dialog = None
 
     @staticmethod
     def _sync_windows_startup_setting(config: AppConfig) -> None:

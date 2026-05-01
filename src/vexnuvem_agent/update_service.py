@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 import subprocess
@@ -92,7 +93,12 @@ class GitHubUpdateService:
             info=info,
         )
 
-    def download_installer(self, info: UpdateInfo, destination_dir: Path) -> Path:
+    def download_installer(
+        self,
+        info: UpdateInfo,
+        destination_dir: Path,
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> Path:
         auth_token = (info.auth_token or "").strip()
         asset_url = (info.asset_url or "").strip()
         asset_api_url = (info.asset_api_url or "").strip()
@@ -113,10 +119,17 @@ class GitHubUpdateService:
         try:
             with requests.get(download_url, headers=headers, stream=True, timeout=60.0) as response:
                 response.raise_for_status()
+                total_bytes = int(response.headers.get("Content-Length", 0) or 0)
+                received_bytes = 0
+                if progress_callback:
+                    progress_callback(received_bytes, total_bytes)
                 with temp_path.open("wb") as handle:
                     for chunk in response.iter_content(chunk_size=1024 * 256):
                         if chunk:
                             handle.write(chunk)
+                            received_bytes += len(chunk)
+                            if progress_callback:
+                                progress_callback(received_bytes, total_bytes)
         except requests.RequestException as exc:
             self.logger.warning("Falha ao baixar instalador da release %s: %s", info.latest_version, exc)
             raise UpdateInstallError("Nao foi possivel baixar o instalador da nova versao.") from exc
@@ -124,6 +137,9 @@ class GitHubUpdateService:
             raise UpdateInstallError("Nao foi possivel gravar o instalador baixado no disco.") from exc
 
         temp_path.replace(target_path)
+        if progress_callback:
+            final_size = target_path.stat().st_size if target_path.exists() else 0
+            progress_callback(final_size, final_size)
         return target_path
 
     def create_windows_upgrade_launcher(
@@ -293,7 +309,7 @@ class GitHubUpdateService:
             ")\r\n"
             "\r\n"
             "if not exist \"%INSTALLER%\" goto cleanup\r\n"
-            "\"%INSTALLER%\" /SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /LOG=\"%INSTALL_LOG%\"\r\n"
+            "\"%INSTALLER%\" /SP- /SILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /LOG=\"%INSTALL_LOG%\"\r\n"
             "set \"INSTALL_EXIT=%ERRORLEVEL%\"\r\n"
             "if \"%RESTART_EXE%\" NEQ \"\" if exist \"%RESTART_EXE%\" start \"\" \"%RESTART_EXE%\"\r\n"
             "\r\n"

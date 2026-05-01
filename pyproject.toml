@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vexnuvem-agent"
+version = "1.0.0"
+description = "Agente de backup desktop com FTP failover e monitoramento remoto."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "PySide6>=6.8",
+  "APScheduler>=3.10",
+  "requests>=2.32",
+  "cryptography>=44.0",
+  "keyring>=25.6",
+  "watchdog>=4.0",
+  "pyinstaller>=6.15",
+]
+
+[project.scripts]
+vexnuvem-agent = "vexnuvem_agent.main:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

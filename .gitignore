@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.tools/
+.pytest_cache/
+build/
+build_assets/
+dist/
+src/vexnuvem_agent/_build_meta.py

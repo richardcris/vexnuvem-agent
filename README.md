@@ -73,7 +73,7 @@ O instalador sera criado em `dist/installer/` com a logo aplicada no assistente 
 ## Primeiro push no GitHub
 
 - Esta pasta agora pode ser usada como um repositorio Git independente.
-- O remote `origin` esperado e `https://github.com/richard9821/vexnuvem-agent.git`.
+- O remote `origin` esperado e `https://github.com/richardcris/vexnuvem-agent.git`.
 - Se esse repositorio continuar privado, gere um token de leitura no GitHub e informe-o no app em `Configuracoes > Atualizacoes automaticas > Token GitHub`.
 - Crie esse repositorio vazio no GitHub e depois publique com:
 

@@ -925,7 +925,7 @@ class MainWindow(QMainWindow):
         self.api_enabled_checkbox.setChecked(self.config.api.enabled)
         self.api_endpoint_edit.setText(self.config.api.endpoint)
         self.update_enabled_checkbox.setChecked(self.config.update.enabled)
-        self.update_repository_edit.setText(self.config.update.repository)
+        self.update_repository_edit.setText(self.config.update.repository or self.default_update_repository)
         self.update_token_edit.setText(self.config.update.token)
 
         self.schedule_enabled_checkbox.setChecked(self.config.schedule.enabled)

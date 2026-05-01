@@ -1,7 +1,7 @@
 __all__ = ["__version__", "__github_repository__"]
 
 _BASE_VERSION = "1.0.0"
-_BASE_GITHUB_REPOSITORY = ""
+_BASE_GITHUB_REPOSITORY = "richardcris/vexnuvem-agent"
 
 try:
 	from ._build_meta import BUILD_VERSION, GITHUB_REPOSITORY

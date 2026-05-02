@@ -14,6 +14,23 @@ QMainWindow, QWidget#RootWidget {
     background-color: #07101B;
 }
 
+QDialog, QMessageBox {
+    background-color: #07101B;
+}
+
+QMessageBox QLabel {
+    color: #EAF7FF;
+    background: transparent;
+}
+
+QMessageBox QTextEdit,
+QMessageBox QPlainTextEdit {
+    background-color: #081420;
+    color: #EAF7FF;
+    border: 1px solid rgba(90, 180, 255, 0.25);
+    border-radius: 12px;
+}
+
 QFrame#Sidebar {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
         stop:0 #091526,

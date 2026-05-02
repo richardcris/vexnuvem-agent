@@ -9,21 +9,21 @@ O workflow substitui automaticamente:
 
 ## Novidades desta versao
 
-- A barra lateral do VexNuvem Agent agora ganhou um botao profissional no rodape para abrir diretamente o site oficial da Vexper Sistemas.
-- O novo atalho institucional foi integrado ao menu lateral com visual consistente com a identidade do produto.
+- Os avisos do VexNuvem Agent agora usam contraste visual consistente em diferentes maquinas Windows.
+- Mensagens de sucesso, alerta e erro passam a aparecer com leitura clara mesmo quando o tema do sistema tenta aplicar um fundo diferente no dialogo.
 
 ## Melhorias
 
-- O rodape da lateral agora aproveita melhor o espaco com um CTA institucional claro e de acesso rapido.
-- O botao abre o site `https://www.vexpersistemas.com.br/` diretamente pelo app, sem depender de copiar link manualmente.
+- O tema dos dialogos foi reforcado para manter o padrao visual escuro do app tambem nas caixas de mensagem.
+- Campos de detalhe dentro dos avisos agora seguem o mesmo esquema de cores do restante da interface.
 
 ## Correcoes
 
-- Corrigido o rodape vazio da barra lateral, que agora passa a ter uma acao util e institucional.
-- Ajustado o tema para acomodar o novo botao sem quebrar o restante da navegacao lateral.
+- Corrigido o problema em que notificacoes e avisos podiam ficar com texto muito claro sobre fundo claro em outras maquinas.
+- Ajustado o estilo de `QDialog` e `QMessageBox` para evitar mensagens quase invisiveis em ambientes com tema diferente.
 
 ## Observacoes
 
-- Depois de atualizar para a 1.0.13, confira no menu lateral inferior o botao "Abrir Vexper Sistemas".
+- Depois de atualizar para a 1.0.14, confira os avisos de configuracao, backup e atualizacao para validar a nova legibilidade.
 
 **Comparacao completa:** {{COMPARE_URL}}

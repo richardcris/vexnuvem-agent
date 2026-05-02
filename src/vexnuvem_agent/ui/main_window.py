@@ -50,6 +50,7 @@ from ..protection_service import RansomwareProtectionService
 from ..scheduler_service import SchedulerService
 from ..startup_service import apply_start_with_windows, is_windows_startup_supported
 from ..storage import BackupHistoryStore
+from ..system_info import collect_system_snapshot
 from ..update_state import (
     PendingUpdateNotice,
     clear_pending_update_notice,
@@ -390,6 +391,9 @@ class MainWindow(QMainWindow):
         self.update_progress_dialog: UpdateProgressDialog | None = None
         self.update_prompted_version = ""
         self.pending_update_check_after_startup_backup = False
+        self.api_presence_timer = QTimer(self)
+        self.api_presence_timer.setInterval(5 * 60 * 1000)
+        self.api_presence_timer.timeout.connect(self._send_presence_heartbeat)
 
         self.setWindowTitle("VexNuvem Agent")
         if not self.logo_pixmap.isNull():
@@ -403,8 +407,10 @@ class MainWindow(QMainWindow):
         self._refresh_views()
         self.scheduler_service.apply_config(self.config)
         self.protection_service.apply_config(self.config)
+        self.api_presence_timer.start()
         self._schedule_startup_actions()
         self._schedule_post_update_notice()
+        QTimer.singleShot(1500, self._send_presence_heartbeat)
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -1343,6 +1349,7 @@ class MainWindow(QMainWindow):
 
         self.settings_api_status_label.setText("Testando conexao com a API...")
         QApplication.processEvents()
+        self._send_presence_heartbeat(config_override=config)
         success, payload = self.backup_engine.api_client.fetch_client_status(config.api, config.client_id)
         if success and isinstance(payload, dict):
             client = payload.get("client", {})
@@ -1374,6 +1381,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, "settings_api_status_label"):
             self.settings_api_status_label.setText("Consultando status remoto...")
         QApplication.processEvents()
+        self._send_presence_heartbeat(config_override=active_config)
         success, payload = self.backup_engine.api_client.fetch_client_status(api_config, active_config.client_id)
         if not success:
             self.remote_status_snapshot = None
@@ -1402,6 +1410,26 @@ class MainWindow(QMainWindow):
         )
         if hasattr(self, "settings_api_status_label"):
             self.settings_api_status_label.setText(success_message)
+
+    def _send_presence_heartbeat(self, config_override: AppConfig | None = None) -> bool:
+        active_config = config_override or self.config
+        api_config = active_config.api
+        if not api_config.enabled or not api_config.endpoint or not active_config.client_id:
+            return False
+
+        try:
+            system_snapshot = collect_system_snapshot()
+            success, message = self.backup_engine.api_client.send_presence(
+                api_config,
+                active_config.client_id,
+                system_snapshot.get("ip_address", "127.0.0.1"),
+            )
+            if not success:
+                self.logger.warning("Falha ao enviar heartbeat para a API: %s", message)
+            return success
+        except Exception as exc:
+            self.logger.warning("Falha ao enviar heartbeat para a API: %s", exc)
+            return False
 
     def check_for_updates_on_startup(self) -> None:
         self._start_update_check(manual=False)

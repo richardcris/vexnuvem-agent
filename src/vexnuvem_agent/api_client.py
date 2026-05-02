@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote
 
@@ -11,6 +12,16 @@ from .models import ApiConfig
 class MonitoringApiClient:
     def __init__(self, logger) -> None:
         self.logger = logger
+
+    def send_presence(self, config: ApiConfig, client_id: str, ip_address: str) -> tuple[bool, str]:
+        payload = {
+            "client_id": client_id,
+            "status": "in_progress",
+            "file_size": 0,
+            "date": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "ip": ip_address or "127.0.0.1",
+        }
+        return self.send_backup_status(config, payload)
 
     def send_backup_status(self, config: ApiConfig, payload: dict[str, Any]) -> tuple[bool, str]:
         if not config.enabled or not config.endpoint:

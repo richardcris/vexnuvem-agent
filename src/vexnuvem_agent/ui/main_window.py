@@ -1493,7 +1493,7 @@ class MainWindow(QMainWindow):
         self.update_worker = None
 
     def _begin_update_installation(self, info: UpdateInfo, manual: bool) -> None:
-        if not self._can_self_update():
+        if not getattr(sys, "frozen", False):
             message = (
                 "Nova versao encontrada, mas a atualizacao automatica so funciona no app instalado pelo setup. "
                 "Use o instalador publicado na release para atualizar esta instancia."
@@ -1501,6 +1501,14 @@ class MainWindow(QMainWindow):
             self._set_update_status(message)
             if manual:
                 QMessageBox.information(self, "VexNuvem", message)
+            return
+
+        if not self._can_self_update() and not manual:
+            message = (
+                "Nova versao encontrada para o VexNuvem Agent. Esta instancia nao foi aberta a partir da instalacao padrao, "
+                "entao a atualizacao automatica silenciosa foi ignorada para evitar fechar o app sem concluir a troca."
+            )
+            self._set_update_status(message)
             return
 
         if self.update_install_worker and self.update_install_worker.isRunning():
@@ -1530,8 +1538,20 @@ class MainWindow(QMainWindow):
 
     def _handle_update_install_ready(self, info: UpdateInfo, installer_path: str, manual: bool) -> None:
         try:
+            installer = Path(installer_path)
+            if not self._can_self_update():
+                self.update_service.launch_installer(installer)
+                message = (
+                    f"O instalador da versao {info.latest_version} foi aberto. Conclua a instalacao e depois abra a versao instalada em "
+                    f"{INSTALLED_APP_EXE.parent}."
+                )
+                self._set_update_status(message)
+                if manual:
+                    QMessageBox.information(self, "VexNuvem", message)
+                return
+
             launcher_path = self.update_service.create_windows_upgrade_launcher(
-                installer_path=Path(installer_path),
+                installer_path=installer,
                 launcher_dir=TEMP_DIR / "updates",
                 current_pid=os.getpid(),
                 restart_executable=self._resolve_restart_executable(),
@@ -1646,10 +1666,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _resolve_restart_executable() -> str:
-        if not getattr(sys, "frozen", False):
-            return ""
-        executable = Path(sys.executable)
-        if executable.suffix.lower() != ".exe":
+        if not MainWindow._can_self_update():
             return ""
         return str(INSTALLED_APP_EXE)
 
@@ -1662,7 +1679,15 @@ class MainWindow(QMainWindow):
         if not getattr(sys, "frozen", False):
             return False
         executable = Path(sys.executable)
-        return executable.exists() and executable.suffix.lower() == ".exe"
+        if not executable.exists() or executable.suffix.lower() != ".exe":
+            return False
+        try:
+            current_path = executable.resolve()
+            installed_path = INSTALLED_APP_EXE.resolve()
+        except OSError:
+            current_path = executable
+            installed_path = INSTALLED_APP_EXE
+        return os.path.normcase(str(current_path)) == os.path.normcase(str(installed_path))
 
     def _default_update_status_message(self) -> str:
         if self.default_update_repository:

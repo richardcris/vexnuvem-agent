@@ -9,23 +9,21 @@ O workflow substitui automaticamente:
 
 ## Novidades desta versao
 
-- O agente agora envia um heartbeat automatico para a Base44 ao abrir e durante a execucao, fazendo o cliente aparecer como `online` no painel remoto.
-- Esta atualizacao tambem mantem a correcao do token da API e melhora o fluxo de instalacao automatica, reabrindo a versao instalada ao final do setup silencioso.
+- O atualizador agora distingue a instalacao oficial de uma copia portatil do executavel, evitando fechar o app sem concluir a troca quando a atualizacao for detectada fora do caminho padrao.
+- Campos de FTP copiados com Enter extra agora sao normalizados antes da conexao, reduzindo falhas durante o envio do backup.
 
 ## Melhorias
 
-- O campo "Token API" ficou visivel em `Configuracoes > Monitoramento remoto`, evitando que ambientes novos fiquem offline por falta de autenticacao.
-- O app renova o status remoto periodicamente sem depender da execucao de um backup completo.
-- O launcher de atualizacao agora prioriza a reabertura do executavel instalado em `%LOCALAPPDATA%\Programs\VexNuvem Agent`.
+- Em instancias abertas fora da instalacao padrao, o check manual de update passa a abrir o instalador normalmente, sem encerrar a sessao atual do agente.
+- O upload FTP remove `\r` e `\n` finais comuns de copia e cola em host, usuario, senha e diretorio remoto.
 
 ## Correcoes
 
-- Corrigido o envio do cabecalho `Authorization` para endpoints Base44 `.../functions` quando houver token configurado.
-- Corrigido o salvamento das configuracoes para nao apagar o token da API ao testar ou salvar a tela de monitoramento remoto.
-- Corrigido o fluxo que deixava `last_connection` nulo e mantinha o cliente como `offline` em maquinas novas sem backup executado.
+- Corrigido o fluxo que entrava em loop de atualizacao quando o app era aberto por uma copia portatil em vez da versao instalada em `%LOCALAPPDATA%\Programs\VexNuvem Agent`.
+- Corrigida a falha `an illegal newline character should not be contained` causada por quebras de linha invalidas em configuracoes do FTP.
 
 ## Observacoes
 
-- Depois de atualizar, abra o agente na outra maquina e aguarde alguns segundos para o heartbeat inicial atualizar o status remoto.
+- Se voce estiver usando uma copia portatil, conclua a instalacao aberta pelo setup e depois passe a iniciar o agente pela versao instalada.
 
 **Comparacao completa:** {{COMPARE_URL}}

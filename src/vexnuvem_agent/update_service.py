@@ -178,6 +178,15 @@ class GitHubUpdateService:
         except OSError as exc:
             raise UpdateInstallError("Nao foi possivel iniciar o instalador da nova versao.") from exc
 
+    def launch_installer(self, installer_path: Path) -> None:
+        try:
+            subprocess.Popen(
+                [str(installer_path)],
+                close_fds=True,
+            )
+        except OSError as exc:
+            raise UpdateInstallError("Nao foi possivel abrir o instalador da nova versao.") from exc
+
     def _fetch_latest_release(self, repository: str, auth_token: str = "") -> dict:
         url = self.API_TEMPLATE.format(repository=repository)
         headers = self._build_headers(auth_token)

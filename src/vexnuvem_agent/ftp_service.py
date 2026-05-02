@@ -36,18 +36,26 @@ class FTPFailoverUploader:
         for server in candidates:
             for attempt in range(1, max_retries + 1):
                 try:
+                    server_name = self._normalize_ftp_value(server.name, "Nome do servidor", strip_spaces=True) or "Servidor FTP"
+                    server_host = self._normalize_ftp_value(server.host, "Host FTP", strip_spaces=True)
+                    server_username = self._normalize_ftp_value(server.username, "Usuario FTP", strip_spaces=True)
+                    server_password = self._normalize_ftp_value(server.password, "Senha FTP")
+                    remote_dir = self._normalize_remote_dir(server.remote_dir)
+                    if not server_host:
+                        raise RuntimeError(f"O servidor FTP '{server_name}' esta sem host configurado.")
+
                     self.logger.info(
                         "Iniciando upload para %s (%s), tentativa %s/%s",
-                        server.name,
-                        server.host,
+                        server_name,
+                        server_host,
                         attempt,
                         max_retries,
                     )
                     with FTP() as ftp:
-                        ftp.connect(server.host, server.port, timeout=30)
-                        ftp.login(server.username, server.password)
+                        ftp.connect(server_host, server.port, timeout=30)
+                        ftp.login(server_username, server_password)
                         ftp.set_pasv(server.passive_mode)
-                        self._ensure_remote_directory(ftp, server.remote_dir)
+                        self._ensure_remote_directory(ftp, remote_dir)
 
                         sent_bytes = 0
 
@@ -55,7 +63,7 @@ class FTPFailoverUploader:
                             nonlocal sent_bytes
                             sent_bytes += len(chunk)
                             if progress_callback:
-                                progress_callback(sent_bytes, total_bytes, f"Enviando para {server.name}")
+                                progress_callback(sent_bytes, total_bytes, f"Enviando para {server_name}")
 
                         with archive_path.open("rb") as handle:
                             ftp.storbinary(
@@ -65,11 +73,11 @@ class FTPFailoverUploader:
                                 callback=on_chunk,
                             )
 
-                    remote_path = posixpath.join(server.remote_dir.rstrip("/"), archive_path.name)
+                    remote_path = posixpath.join(remote_dir.rstrip("/"), archive_path.name)
                     if not remote_path.startswith("/"):
                         remote_path = f"/{remote_path}"
-                    self.logger.info("Upload concluido em %s", server.name)
-                    return UploadResult(server_name=server.name, remote_path=remote_path)
+                    self.logger.info("Upload concluido em %s", server_name)
+                    return UploadResult(server_name=server_name, remote_path=remote_path)
                 except all_errors as exc:
                     last_error = exc
                     self.logger.warning(
@@ -98,3 +106,19 @@ class FTPFailoverUploader:
             except error_perm:
                 ftp.mkd(part)
                 ftp.cwd(part)
+
+    @staticmethod
+    def _normalize_ftp_value(raw_value: str, field_name: str, *, strip_spaces: bool = False) -> str:
+        clean_value = str(raw_value or "").rstrip("\r\n")
+        if strip_spaces:
+            clean_value = clean_value.strip()
+        if "\r" in clean_value or "\n" in clean_value:
+            raise RuntimeError(
+                f"O campo '{field_name}' contem quebra de linha invalida. Remova o Enter extra e tente novamente."
+            )
+        return clean_value
+
+    @classmethod
+    def _normalize_remote_dir(cls, remote_dir: str) -> str:
+        clean_path = cls._normalize_ftp_value(remote_dir or "/", "Diretorio remoto", strip_spaces=True)
+        return clean_path or "/"

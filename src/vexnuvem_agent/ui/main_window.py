@@ -5,8 +5,8 @@ from pathlib import Path
 import sys
 import traceback
 
-from PySide6.QtCore import QEasingCurve, QParallelAnimationGroup, QPropertyAnimation, QThread, QTime, QTimer, Qt, Signal
-from PySide6.QtGui import QAction, QCloseEvent, QFont, QIcon, QPixmap
+from PySide6.QtCore import QEasingCurve, QParallelAnimationGroup, QPropertyAnimation, QThread, QTime, QTimer, Qt, QUrl, Signal
+from PySide6.QtGui import QAction, QCloseEvent, QDesktopServices, QFont, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -71,6 +71,8 @@ WEEKDAY_LABELS = {
     "sat": "Sab",
     "sun": "Dom",
 }
+
+COMPANY_WEBSITE_URL = "https://www.vexpersistemas.com.br/"
 
 
 class CardFrame(QFrame):
@@ -480,8 +482,26 @@ class MainWindow(QMainWindow):
         sidebar_card_layout.addWidget(self.sidebar_update_label)
         layout.addWidget(sidebar_card)
 
+        website_card = CardFrame()
+        website_layout = QVBoxLayout(website_card)
+        website_layout.setContentsMargins(18, 18, 18, 18)
+        website_layout.setSpacing(10)
+        website_title = QLabel("Site institucional")
+        website_title.setProperty("subtle", True)
+        website_button = QPushButton("Abrir Vexper Sistemas")
+        website_button.setProperty("sidebarLink", True)
+        website_button.clicked.connect(self._open_company_website)
+        website_layout.addWidget(website_title)
+        website_layout.addWidget(website_button)
+        layout.addWidget(website_card)
+
         layout.addStretch(1)
         return sidebar
+
+    def _open_company_website(self) -> None:
+        if QDesktopServices.openUrl(QUrl(COMPANY_WEBSITE_URL)):
+            return
+        QMessageBox.warning(self, "VexNuvem", f"Nao foi possivel abrir {COMPANY_WEBSITE_URL}.")
 
     def _build_content(self) -> QWidget:
         wrapper = QWidget()

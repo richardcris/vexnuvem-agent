@@ -90,6 +90,29 @@ QPushButton[nav="true"][active="true"] {
     border: 1px solid rgba(92, 202, 255, 0.65);
 }
 
+QPushButton[sidebarLink="true"] {
+    text-align: left;
+    padding: 12px 16px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 rgba(14, 45, 70, 0.98),
+        stop:1 rgba(18, 95, 148, 0.98));
+    border: 1px solid rgba(108, 210, 255, 0.55);
+    border-radius: 16px;
+    font-size: 10.5pt;
+    font-weight: 700;
+}
+
+QPushButton[sidebarLink="true"]:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 rgba(20, 63, 98, 1.0),
+        stop:1 rgba(27, 124, 191, 1.0));
+    border: 1px solid rgba(134, 226, 255, 0.75);
+}
+
+QPushButton[sidebarLink="true"]:pressed {
+    background-color: #103452;
+}
+
 QLineEdit, QComboBox, QSpinBox, QTimeEdit, QListWidget, QTableWidget {
     background-color: #081420;
     border: 1px solid rgba(90, 180, 255, 0.25);

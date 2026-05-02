@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import traceback
 
-from PySide6.QtCore import QThread, QTime, QTimer, Qt, Signal
+from PySide6.QtCore import QEasingCurve, QParallelAnimationGroup, QPropertyAnimation, QThread, QTime, QTimer, Qt, Signal
 from PySide6.QtGui import QAction, QCloseEvent, QFont, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QFrame,
+    QGraphicsOpacityEffect,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -391,6 +392,7 @@ class MainWindow(QMainWindow):
         self.update_progress_dialog: UpdateProgressDialog | None = None
         self.update_prompted_version = ""
         self.pending_update_check_after_startup_backup = False
+        self.header_signature_animation: QParallelAnimationGroup | None = None
         self.api_presence_timer = QTimer(self)
         self.api_presence_timer.setInterval(5 * 60 * 1000)
         self.api_presence_timer.timeout.connect(self._send_presence_heartbeat)
@@ -408,6 +410,7 @@ class MainWindow(QMainWindow):
         self.scheduler_service.apply_config(self.config)
         self.protection_service.apply_config(self.config)
         self.api_presence_timer.start()
+        QTimer.singleShot(280, self._start_header_signature_animation)
         self._schedule_startup_actions()
         self._schedule_post_update_notice()
         QTimer.singleShot(1500, self._send_presence_heartbeat)
@@ -487,8 +490,11 @@ class MainWindow(QMainWindow):
         layout.setSpacing(16)
 
         top_bar = QHBoxLayout()
+        top_bar.setSpacing(18)
         self.header_logo_label = self._create_logo_label(max_width=370, max_height=140)
         top_bar.addWidget(self.header_logo_label)
+        self.developer_signature_card = self._build_developer_signature()
+        top_bar.addWidget(self.developer_signature_card, 0, Qt.AlignmentFlag.AlignVCenter)
         self.page_subtitle_label = QLabel("")
         self.page_subtitle_label.hide()
         top_bar.addStretch(1)
@@ -510,6 +516,81 @@ class MainWindow(QMainWindow):
         layout.addLayout(top_bar)
         layout.addWidget(self.stack, 1)
         return wrapper
+
+    def _build_developer_signature(self) -> QWidget:
+        card = QFrame()
+        card.setObjectName("DeveloperBadge")
+        card.setMaximumWidth(380)
+        card.setMinimumWidth(270)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(22, 18, 22, 18)
+        layout.setSpacing(5)
+
+        kicker_label = QLabel("DESENVOLVIDO POR")
+        kicker_label.setProperty("developerKicker", True)
+
+        company_label = QLabel("Vexper Sistemas")
+        company_label.setProperty("developerCompany", True)
+        company_label.setWordWrap(True)
+
+        developer_label = QLabel("Richard A")
+        developer_label.setProperty("developerName", True)
+
+        detail_label = QLabel("Identidade visual e evolucao do agente")
+        detail_label.setProperty("subtle", True)
+        detail_label.setWordWrap(True)
+
+        accent_line = QFrame()
+        accent_line.setObjectName("DeveloperAccent")
+        accent_line.setFixedHeight(4)
+        accent_line.setMinimumWidth(0)
+        accent_line.setMaximumWidth(0)
+
+        layout.addWidget(kicker_label)
+        layout.addWidget(company_label)
+        layout.addWidget(developer_label)
+        layout.addWidget(detail_label)
+        layout.addSpacing(4)
+        layout.addWidget(accent_line, 0, Qt.AlignmentFlag.AlignLeft)
+
+        opacity_effect = QGraphicsOpacityEffect(card)
+        opacity_effect.setOpacity(0.0)
+        card.setGraphicsEffect(opacity_effect)
+
+        self.developer_signature_effect = opacity_effect
+        self.developer_signature_accent = accent_line
+        return card
+
+    def _start_header_signature_animation(self) -> None:
+        if not hasattr(self, "developer_signature_card") or not hasattr(self, "developer_signature_effect"):
+            return
+
+        target_width = max(120, min(200, self.developer_signature_card.sizeHint().width() - 110))
+
+        opacity_animation = QPropertyAnimation(self.developer_signature_effect, b"opacity", self)
+        opacity_animation.setDuration(900)
+        opacity_animation.setStartValue(0.0)
+        opacity_animation.setEndValue(1.0)
+        opacity_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        accent_min_animation = QPropertyAnimation(self.developer_signature_accent, b"minimumWidth", self)
+        accent_min_animation.setDuration(1050)
+        accent_min_animation.setStartValue(0)
+        accent_min_animation.setEndValue(target_width)
+        accent_min_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        accent_max_animation = QPropertyAnimation(self.developer_signature_accent, b"maximumWidth", self)
+        accent_max_animation.setDuration(1050)
+        accent_max_animation.setStartValue(0)
+        accent_max_animation.setEndValue(target_width)
+        accent_max_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        self.header_signature_animation = QParallelAnimationGroup(self)
+        self.header_signature_animation.addAnimation(opacity_animation)
+        self.header_signature_animation.addAnimation(accent_min_animation)
+        self.header_signature_animation.addAnimation(accent_max_animation)
+        self.header_signature_animation.start()
 
     def _create_logo_label(self, max_width: int, max_height: int) -> QLabel:
         return create_logo_label(self.logo_pixmap, max_width=max_width, max_height=max_height)

@@ -30,6 +30,14 @@ QFrame#Card, QGroupBox {
     border-radius: 18px;
 }
 
+QFrame#DeveloperBadge {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(10, 26, 42, 0.96),
+        stop:1 rgba(12, 40, 63, 0.94));
+    border: 1px solid rgba(116, 211, 255, 0.38);
+    border-radius: 20px;
+}
+
 QGroupBox {
     margin-top: 14px;
     padding: 18px;
@@ -143,6 +151,32 @@ QLabel[headline="true"] {
 
 QLabel[subtle="true"] {
     color: #89A7BE;
+}
+
+QLabel[developerKicker="true"] {
+    color: #7DBFE6;
+    font-size: 9pt;
+    font-weight: 600;
+}
+
+QLabel[developerCompany="true"] {
+    color: #F3FBFF;
+    font-size: 17pt;
+    font-weight: 700;
+}
+
+QLabel[developerName="true"] {
+    color: #69D4FF;
+    font-size: 11pt;
+    font-weight: 700;
+}
+
+QFrame#DeveloperAccent {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #12B8FF,
+        stop:1 #7BF0FF);
+    border: none;
+    border-radius: 2px;
 }
 """
 

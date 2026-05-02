@@ -45,7 +45,7 @@ from PySide6.QtWidgets import (
 from ..backup_service import BackupEngine, format_bytes
 from ..config import ConfigManager, filters_to_text, text_to_filters
 from ..models import AppConfig, AuthConfig, BackupSource, FtpServerConfig, ProtectionConfig, ScheduleConfig, UpdateConfig
-from ..paths import TEMP_DIR
+from ..paths import INSTALLED_APP_EXE, TEMP_DIR
 from ..protection_service import RansomwareProtectionService
 from ..scheduler_service import SchedulerService
 from ..startup_service import apply_start_with_windows, is_windows_startup_supported
@@ -252,7 +252,7 @@ class UpdateProgressDialog(QDialog):
         self.status_label.setText("Download concluido. Abrindo o instalador da nova versao...")
         self.progress_bar.setRange(0, 0)
         self.progress_label.setText(
-            "Uma janela do instalador sera exibida para mostrar o progresso da instalacao."
+            "O aplicativo sera fechado por alguns segundos para concluir a instalacao e a versao instalada sera aberta automaticamente."
         )
 
 
@@ -753,8 +753,11 @@ class MainWindow(QMainWindow):
         self.api_enabled_checkbox = QCheckBox("Enviar status para API Base44")
         self.api_endpoint_edit = QLineEdit()
         self.api_endpoint_edit.setPlaceholderText("https://SUA_URL/api ou https://SEU_APP.base44.app/functions")
+        self.api_token_edit = QLineEdit()
+        self.api_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.api_token_edit.setPlaceholderText("Opcional quando a API exigir autenticacao Bearer")
         api_hint = QLabel(
-            "Nao e necessario token. A Base44 identifica o cliente pelo Agent ID configurado acima e usa POST em /receiveBackup e /clientStatus."
+            "A Base44 geralmente identifica o cliente pelo Agent ID configurado acima. Se a sua API exigir autenticacao, informe um token Bearer neste campo."
         )
         api_hint.setWordWrap(True)
         api_hint.setProperty("subtle", True)
@@ -774,6 +777,7 @@ class MainWindow(QMainWindow):
         self.settings_api_status_label.setWordWrap(True)
         api_layout.addRow("", self.api_enabled_checkbox)
         api_layout.addRow("Endpoint base", self.api_endpoint_edit)
+        api_layout.addRow("Token API", self.api_token_edit)
         api_layout.addRow("", api_hint)
         api_layout.addRow("", api_actions_row)
         api_layout.addRow("Status atual", self.settings_api_status_label)
@@ -1028,6 +1032,7 @@ class MainWindow(QMainWindow):
         self.filters_edit.setText(filters_to_text(self.config.filters))
         self.api_enabled_checkbox.setChecked(self.config.api.enabled)
         self.api_endpoint_edit.setText(self.config.api.endpoint)
+        self.api_token_edit.setText(self.config.api.token)
         self.update_enabled_checkbox.setChecked(self.config.update.enabled)
         self.update_repository_edit.setText(self.config.update.repository or self.default_update_repository)
         self.update_token_edit.setText(self.config.update.token)
@@ -1135,7 +1140,7 @@ class MainWindow(QMainWindow):
         config.ftp_servers = [FtpServerConfig.from_dict(item.to_dict()) for item in self.current_ftp_servers]
         config.api.enabled = self.api_enabled_checkbox.isChecked()
         config.api.endpoint = self.api_endpoint_edit.text().strip()
-        config.api.token = ""
+        config.api.token = self.api_token_edit.text().strip()
         config.update = UpdateConfig(
             enabled=self.update_enabled_checkbox.isChecked(),
             repository=self.update_repository_edit.text().strip(),
@@ -1501,7 +1506,7 @@ class MainWindow(QMainWindow):
                 installer_path=Path(installer_path),
                 launcher_dir=TEMP_DIR / "updates",
                 current_pid=os.getpid(),
-                restart_executable=sys.executable,
+                restart_executable=self._resolve_restart_executable(),
             )
             save_pending_update_notice(
                 PendingUpdateNotice(
@@ -1527,7 +1532,7 @@ class MainWindow(QMainWindow):
         if self.tray_icon.isVisible():
             self.tray_icon.showMessage(
                 "VexNuvem",
-                "Atualizacao automatica iniciada. O aplicativo sera reiniciado apos a instalacao.",
+                "Atualizacao automatica iniciada. A versao instalada sera aberta automaticamente ao final.",
                 QSystemTrayIcon.MessageIcon.Information,
                 3000,
             )
@@ -1610,6 +1615,15 @@ class MainWindow(QMainWindow):
         self.update_progress_dialog.close()
         self.update_progress_dialog.deleteLater()
         self.update_progress_dialog = None
+
+    @staticmethod
+    def _resolve_restart_executable() -> str:
+        if not getattr(sys, "frozen", False):
+            return ""
+        executable = Path(sys.executable)
+        if executable.suffix.lower() != ".exe":
+            return ""
+        return str(INSTALLED_APP_EXE)
 
     @staticmethod
     def _sync_windows_startup_setting(config: AppConfig) -> None:

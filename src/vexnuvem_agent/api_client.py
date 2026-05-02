@@ -72,7 +72,7 @@ class MonitoringApiClient:
     @staticmethod
     def _build_headers(config: ApiConfig, endpoint: str) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
-        if config.token and not MonitoringApiClient._is_base44_functions_endpoint(endpoint.strip().rstrip("/")):
+        if config.token:
             headers["Authorization"] = f"Bearer {config.token}"
         return headers
 

@@ -9,21 +9,21 @@ O workflow substitui automaticamente:
 
 ## Novidades desta versao
 
-- O sistema de atualizacao agora identifica corretamente a release mais recente publicada no GitHub, evitando respostas stale do endpoint antigo.
-- As notas exibidas em "Novidades desta versao" passaram a ser definidas por este arquivo e publicadas automaticamente na release {{VERSION}}.
+- O agente agora preserva o token da API nas configuracoes e consegue autenticar chamadas de monitoramento remoto quando a integracao exigir Bearer token.
+- Esta atualizacao tambem melhora o fluxo de instalacao automatica, reabrindo a versao instalada ao final do setup silencioso.
 
 ## Melhorias
 
-- O workflow de release monta automaticamente o link de comparacao entre a versao anterior e a atual.
-- O script local de build do executavel agora funciona mesmo quando versao e repositorio nao sao informados manualmente.
+- O campo "Token API" ficou visivel em `Configuracoes > Monitoramento remoto`, evitando que ambientes novos fiquem offline por falta de autenticacao.
+- O launcher de atualizacao agora prioriza a reabertura do executavel instalado em `%LOCALAPPDATA%\Programs\VexNuvem Agent`.
 
 ## Correcoes
 
-- Corrigida a verificacao de atualizacoes para buscar a release mais recente pela lista de releases publicadas.
-- Corrigida a chamada para gerar metadados de build no script `scripts/build_exe.ps1`.
+- Corrigido o envio do cabecalho `Authorization` para endpoints Base44 `.../functions` quando houver token configurado.
+- Corrigido o salvamento das configuracoes para nao apagar o token da API ao testar ou salvar a tela de monitoramento remoto.
 
 ## Observacoes
 
-- Antes da proxima publicacao, edite este arquivo para atualizar os itens acima com as novidades da nova versao.
+- Depois de atualizar, confirme na outra maquina se o endpoint e o token da API continuam preenchidos em `Configuracoes > Monitoramento remoto`.
 
 **Comparacao completa:** {{COMPARE_URL}}

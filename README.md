@@ -99,6 +99,7 @@ O VexNuvem grava dados em `%APPDATA%\VexNuvem`:
 
 - Configure pelo menos um servidor FTP valido antes do primeiro backup.
 - A integracao com a API e opcional. Informe o endpoint base, por exemplo `https://SUA_URL/api`.
+- Se a API exigir autenticacao, preencha tambem o token Bearer em `Configuracoes > Monitoramento remoto > Token API`.
 - Para apps Base44 Functions, tambem e aceito um endpoint como `https://SEU_APP.base44.app/functions`.
 - Em REST generico o agente usa `POST /backup` e `GET /status/{client_id}`.
 - Em Base44 Functions o agente tenta `POST /receiveBackup` e `GET /clientStatus` com `client_id` como parametro, com fallback para formatos proximos.

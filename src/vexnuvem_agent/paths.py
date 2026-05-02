@@ -18,6 +18,9 @@ def _resolve_app_dir() -> Path:
 
 
 APP_DIR = _resolve_app_dir()
+LOCALAPPDATA_DIR = Path(os.getenv("LOCALAPPDATA") or (Path.home() / "AppData" / "Local"))
+INSTALLED_APP_DIR = LOCALAPPDATA_DIR / "Programs" / "VexNuvem Agent"
+INSTALLED_APP_EXE = INSTALLED_APP_DIR / "VexNuvem Agent.exe"
 LOG_DIR = APP_DIR / "logs"
 ARCHIVE_DIR = APP_DIR / "archives"
 TEMP_DIR = APP_DIR / "temp"

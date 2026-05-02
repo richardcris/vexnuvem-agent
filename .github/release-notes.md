@@ -9,21 +9,21 @@ O workflow substitui automaticamente:
 
 ## Novidades desta versao
 
-- O atualizador agora distingue a instalacao oficial de uma copia portatil do executavel, evitando fechar o app sem concluir a troca quando a atualizacao for detectada fora do caminho padrao.
-- Campos de FTP copiados com Enter extra agora sao normalizados antes da conexao, reduzindo falhas durante o envio do backup.
+- O dashboard agora se ajusta melhor a monitores menores e passou a exibir rolagem quando a altura da janela nao comporta todos os cards.
+- Esta versao foca em estabilizar a experiencia visual para validar o fluxo de atualizacao entre versoes sem cortar informacoes da tela inicial.
 
 ## Melhorias
 
-- Em instancias abertas fora da instalacao padrao, o check manual de update passa a abrir o instalador normalmente, sem encerrar a sessao atual do agente.
-- O upload FTP remove `\r` e `\n` finais comuns de copia e cola em host, usuario, senha e diretorio remoto.
+- Os cards do dashboard distribuem melhor a largura disponivel durante o redimensionamento da janela.
+- A tela inicial agora acompanha melhor diferentes resolucoes sem perder acesso ao historico recente.
 
 ## Correcoes
 
-- Corrigido o fluxo que entrava em loop de atualizacao quando o app era aberto por uma copia portatil em vez da versao instalada em `%LOCALAPPDATA%\Programs\VexNuvem Agent`.
-- Corrigida a falha `an illegal newline character should not be contained` causada por quebras de linha invalidas em configuracoes do FTP.
+- Corrigida a ausencia de scroll no dashboard, que fazia partes da interface ficarem inacessiveis em telas menores.
+- Corrigido o comportamento de corte visual da tela inicial ao reduzir a janela do programa.
 
 ## Observacoes
 
-- Se voce estiver usando uma copia portatil, conclua a instalacao aberta pelo setup e depois passe a iniciar o agente pela versao instalada.
+- Depois de atualizar para a 1.0.9, redimensione a janela ou teste em uma tela menor para confirmar que o dashboard continua navegavel.
 
 **Comparacao completa:** {{COMPARE_URL}}

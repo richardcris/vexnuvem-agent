@@ -543,6 +543,8 @@ class MainWindow(QMainWindow):
         status_cards_layout = QGridLayout()
         status_cards_layout.setHorizontalSpacing(16)
         status_cards_layout.setVerticalSpacing(16)
+        status_cards_layout.setColumnStretch(0, 1)
+        status_cards_layout.setColumnStretch(1, 1)
 
         self.dashboard_update_card = StatusCard(
             "Atualizacoes",
@@ -567,6 +569,8 @@ class MainWindow(QMainWindow):
         stats_grid = QGridLayout()
         stats_grid.setHorizontalSpacing(16)
         stats_grid.setVerticalSpacing(16)
+        for column in range(4):
+            stats_grid.setColumnStretch(column, 1)
         self.metric_total = MetricCard("Backups executados")
         self.metric_success = MetricCard("Execucoes com sucesso")
         self.metric_volume = MetricCard("Volume enviado")
@@ -640,7 +644,11 @@ class MainWindow(QMainWindow):
         recent_layout.addWidget(self.recent_history_table)
         layout.addWidget(recent_card, 1)
 
-        return page
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(page)
+        return scroll
 
     def _build_settings_page(self) -> QWidget:
         page = QWidget()

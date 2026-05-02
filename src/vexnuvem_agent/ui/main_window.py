@@ -1548,7 +1548,7 @@ class MainWindow(QMainWindow):
         try:
             installer = Path(installer_path)
             if not self._can_self_update():
-                self.update_service.launch_installer(installer)
+                self.update_service.launch_installer(installer, install_dir=str(INSTALLED_APP_EXE.parent))
                 message = (
                     f"O instalador da versao {info.latest_version} foi aberto. Conclua a instalacao e depois abra a versao instalada em "
                     f"{INSTALLED_APP_EXE.parent}."
@@ -1563,6 +1563,7 @@ class MainWindow(QMainWindow):
                 launcher_dir=TEMP_DIR / "updates",
                 current_pid=os.getpid(),
                 restart_executable=self._resolve_restart_executable(),
+                install_dir=str(INSTALLED_APP_EXE.parent),
             )
             save_pending_update_notice(
                 PendingUpdateNotice(

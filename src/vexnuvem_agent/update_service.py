@@ -148,17 +148,20 @@ class GitHubUpdateService:
         launcher_dir: Path,
         current_pid: int,
         restart_executable: str = "",
+        install_dir: str = "",
     ) -> Path:
         launcher_dir.mkdir(parents=True, exist_ok=True)
         launcher_path = launcher_dir / f"apply_update_{uuid.uuid4().hex}.cmd"
         log_path = launcher_dir / f"installer_{uuid.uuid4().hex}.log"
         restart_target = self._normalize_restart_executable(restart_executable)
+        install_target = self._normalize_install_dir(install_dir)
 
         script = self._build_upgrade_script(
             installer_path=installer_path,
             current_pid=current_pid,
             log_path=log_path,
             restart_executable=restart_target,
+            install_dir=install_target,
         )
         launcher_path.write_text(script, encoding="utf-8")
         return launcher_path
@@ -178,10 +181,14 @@ class GitHubUpdateService:
         except OSError as exc:
             raise UpdateInstallError("Nao foi possivel iniciar o instalador da nova versao.") from exc
 
-    def launch_installer(self, installer_path: Path) -> None:
+    def launch_installer(self, installer_path: Path, install_dir: str = "") -> None:
+        command = [str(installer_path), "/CURRENTUSER", "/TASKS=desktopicon"]
+        install_target = self._normalize_install_dir(install_dir)
+        if install_target:
+            command.append(f"/DIR={install_target}")
         try:
             subprocess.Popen(
-                [str(installer_path)],
+                command,
                 close_fds=True,
             )
         except OSError as exc:
@@ -304,15 +311,24 @@ class GitHubUpdateService:
         return str(path)
 
     @staticmethod
+    def _normalize_install_dir(raw_value: str) -> str:
+        candidate = (raw_value or "").strip().strip('"')
+        if not candidate:
+            return ""
+        return str(Path(candidate))
+
+    @staticmethod
     def _build_upgrade_script(
         installer_path: Path,
         current_pid: int,
         log_path: Path,
         restart_executable: str,
+        install_dir: str,
     ) -> str:
         installer = str(installer_path)
         log_file = str(log_path)
         restart = restart_executable.replace('"', '""')
+        install_target = install_dir.replace('"', '""')
         return (
             "@echo off\r\n"
             "setlocal\r\n"
@@ -320,6 +336,7 @@ class GitHubUpdateService:
             f"set \"INSTALLER={installer}\"\r\n"
             f"set \"INSTALL_LOG={log_file}\"\r\n"
             f"set \"RESTART_EXE={restart}\"\r\n"
+            f"set \"INSTALL_DIR={install_target}\"\r\n"
             "\r\n"
             ":wait_for_app\r\n"
             "tasklist /FI \"PID eq %TARGET_PID%\" | findstr /R /C:\" %TARGET_PID% \" >nul\r\n"
@@ -329,7 +346,11 @@ class GitHubUpdateService:
             ")\r\n"
             "\r\n"
             "if not exist \"%INSTALLER%\" goto cleanup\r\n"
-            "\"%INSTALLER%\" /SP- /SILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /LOG=\"%INSTALL_LOG%\"\r\n"
+            "if \"%INSTALL_DIR%\"==\"\" (\r\n"
+            "  \"%INSTALLER%\" /SP- /SILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /TASKS=desktopicon /LOG=\"%INSTALL_LOG%\"\r\n"
+            ") else (\r\n"
+            "  \"%INSTALLER%\" /SP- /SILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /TASKS=desktopicon /DIR=\"%INSTALL_DIR%\" /LOG=\"%INSTALL_LOG%\"\r\n"
+            ")\r\n"
             "set \"INSTALL_EXIT=%ERRORLEVEL%\"\r\n"
             "if \"%INSTALL_EXIT%\"==\"0\" goto restart_app\r\n"
             "if \"%INSTALL_EXIT%\"==\"3010\" goto restart_app\r\n"

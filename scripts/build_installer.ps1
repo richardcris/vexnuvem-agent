@@ -48,7 +48,10 @@ try {
         Copy-Item $BuildMetaPath $BuildMetaBackup -Force
     }
 
-    $metadataJson = & $Python .\scripts\generate_build_metadata.py --version $BuildVersion --repository $GitHubRepository
+    $metaArgs = @()
+    if ($BuildVersion) { $metaArgs += @("--version", $BuildVersion) }
+    if ($GitHubRepository) { $metaArgs += @("--repository", $GitHubRepository) }
+    $metadataJson = & $Python .\scripts\generate_build_metadata.py @metaArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Geracao do metadata de build falhou com codigo de saida $LASTEXITCODE."
     }
@@ -59,7 +62,10 @@ try {
 
     if (-not $SkipExeBuild) {
         Invoke-NativeCommand -Description "Build do executavel" -Command {
-            & powershell -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1 -Python $Python -BuildVersion $resolvedVersion -GitHubRepository $resolvedRepository
+            $exeArgs = @("-ExecutionPolicy", "Bypass", "-File", ".\scripts\build_exe.ps1", "-Python", $Python)
+            if ($resolvedVersion)    { $exeArgs += @("-BuildVersion",      $resolvedVersion) }
+            if ($resolvedRepository) { $exeArgs += @("-GitHubRepository",  $resolvedRepository) }
+            & powershell @exeArgs
         }
     }
     else {

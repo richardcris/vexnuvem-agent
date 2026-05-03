@@ -163,7 +163,7 @@ class GitHubUpdateService:
             restart_executable=restart_target,
             install_dir=install_target,
         )
-        launcher_path.write_text(script, encoding="utf-8")
+        launcher_path.write_bytes(script.encode("utf-8"))
         return launcher_path
 
     def launch_upgrade_launcher(self, launcher_path: Path) -> None:

@@ -361,6 +361,7 @@ class GitHubUpdateService:
             "goto cleanup\r\n"
             "\r\n"
             ":restart_app\r\n"
+            "timeout /t 2 /nobreak >nul\r\n"
             "if \"%RESTART_EXE%\" NEQ \"\" if exist \"%RESTART_EXE%\" start \"\" \"%RESTART_EXE%\"\r\n"
             "\r\n"
             ":cleanup\r\n"

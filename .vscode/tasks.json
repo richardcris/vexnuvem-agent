@@ -1,0 +1,45 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build VexNuvem Installer 1.0.3",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				".\\scripts\\build_installer.ps1",
+				"-Python",
+				"c:/Users/richa/OneDrive/Desktop/Novo agente/.venv/Scripts/python.exe",
+				"-BuildVersion",
+				"1.0.3",
+				"-GitHubRepository",
+				"richardcris/vexnuvem-agent",
+				"-OutputBaseFilename",
+				"VexNuvem-Agent-Setup-1.0.3"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build VexNuvem EXE 1.0.3 (new updater)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				".\\scripts\\build_exe.ps1",
+				"-Python",
+				"c:/Users/richa/OneDrive/Desktop/Novo agente/.venv/Scripts/python.exe",
+				"-BuildVersion",
+				"1.0.3",
+				"-GitHubRepository",
+				"richardcris/vexnuvem-agent"
+			],
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}

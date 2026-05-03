@@ -1750,6 +1750,11 @@ class MainWindow(QMainWindow):
 
         comparison = self.update_service._compare_versions(self.app_version, pending_notice.version)
         if comparison < 0:
+            # A versao instalada ainda e mais antiga que a do aviso pendente: o
+            # instalador nao concluiu a atualizacao (falhou silenciosamente, ou
+            # o atalho da area de trabalho ainda aponta para o exe antigo).
+            # Limpar o aviso aqui quebra o loop infinito de download.
+            clear_pending_update_notice()
             return
         if comparison > 0:
             clear_pending_update_notice()

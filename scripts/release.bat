@@ -6,33 +6,79 @@ echo ================================================
 echo   VexNuvem Agent - Publicar Nova Versao
 echo ================================================
 echo.
-echo Este script faz commit das suas alteracoes e
-echo envia para o GitHub, disparando o build e a
-echo publicacao automatica do instalador.
-echo.
 
 REM --------------------------------------------------
-REM Verifica se ha alteracoes no repositorio
+REM Le a versao atual de pyproject.toml via PowerShell
 REM --------------------------------------------------
-git status --short
-echo.
-
-set HAS_CHANGES=0
-for /f "delims=" %%l in ('git status --porcelain 2^>nul') do (
-    set HAS_CHANGES=1
-    goto :check_done
+for /f "delims=" %%v in ('powershell -NoProfile -Command ^
+    "(Get-Content pyproject.toml) | Where-Object { $_ -match '^version\s*=' } | ForEach-Object { ($_ -split '=',2)[1].Trim().Trim('\"') } | Select-Object -First 1"') do (
+    set CURRENT_VERSION=%%v
 )
-:check_done
 
-if "!HAS_CHANGES!"=="0" (
-    echo Nenhuma alteracao encontrada.
-    echo.
-    echo Se quiser re-publicar sem mudancas de codigo, use:
-    echo   git commit --allow-empty -m "chore: re-publicar versao"
-    echo   git push origin main
-    echo.
+if "!CURRENT_VERSION!"=="" (
+    echo ERRO: Nao foi possivel ler a versao de pyproject.toml.
     pause
-    exit /b 0
+    exit /b 1
+)
+
+REM Separa major e minor (patch e gerado pelo numero do run do GitHub Actions)
+for /f "tokens=1,2 delims=." %%a in ("!CURRENT_VERSION!") do (
+    set VER_MAJOR=%%a
+    set VER_MINOR=%%b
+)
+
+echo Versao atual : !CURRENT_VERSION! (o patch sera o numero do run do GitHub)
+echo.
+echo Como deseja atualizar a versao?
+echo   [1] Manter  !VER_MAJOR!.!VER_MINOR!  (so patch muda pelo run do GitHub)
+echo   [2] Minor   !VER_MAJOR!.X  (incrementar minor)
+echo   [3] Major   X.0  (nova versao principal)
+echo   [4] Manual  (digitar major.minor manualmente)
+echo.
+set /p VER_CHOICE=Escolha (1/2/3/4, Enter = 1): 
+if "!VER_CHOICE!"=="" set VER_CHOICE=1
+
+if "!VER_CHOICE!"=="2" (
+    set /a VER_MINOR=!VER_MINOR!+1
+    set NEW_BASE=!VER_MAJOR!.!VER_MINOR!
+)
+if "!VER_CHOICE!"=="3" (
+    set /a VER_MAJOR=!VER_MAJOR!+1
+    set VER_MINOR=0
+    set NEW_BASE=!VER_MAJOR!.!VER_MINOR!
+)
+if "!VER_CHOICE!"=="4" (
+    set /p NEW_BASE=Digite a nova versao base (ex: 2.1): 
+    if "!NEW_BASE!"=="" (
+        echo Versao invalida.
+        pause
+        exit /b 1
+    )
+)
+if "!VER_CHOICE!"=="1" set NEW_BASE=!VER_MAJOR!.!VER_MINOR!
+
+echo.
+echo Nova versao base: !NEW_BASE!.^<run^>  (patch definido pelo GitHub Actions)
+echo.
+
+REM --------------------------------------------------
+REM Atualiza pyproject.toml e __init__.py se mudou
+REM --------------------------------------------------
+set OLD_BASE=!VER_MAJOR!.0
+REM Compara a base atual com a nova (usando apenas major.minor)
+for /f "tokens=1,2 delims=." %%a in ("!CURRENT_VERSION!") do set CUR_BASE=%%a.%%b
+
+if not "!NEW_BASE!"=="!CUR_BASE!" (
+    echo Atualizando versao em pyproject.toml e __init__.py...
+
+    powershell -NoProfile -Command ^
+        "$content = Get-Content 'pyproject.toml' -Raw; $content = $content -replace 'version\s*=\s*""[^""]*""', 'version = ""!NEW_BASE!.0""'; Set-Content 'pyproject.toml' $content -NoNewline"
+
+    powershell -NoProfile -Command ^
+        "$content = Get-Content 'src\vexnuvem_agent\__init__.py' -Raw; $content = $content -replace '_BASE_VERSION\s*=\s*""[^""]*""', '_BASE_VERSION = ""!NEW_BASE!.0""'; Set-Content 'src\vexnuvem_agent\__init__.py' $content -NoNewline"
+
+    echo Versao atualizada para !NEW_BASE!.0 nos arquivos locais.
+    echo.
 )
 
 REM --------------------------------------------------
@@ -52,7 +98,7 @@ REM --------------------------------------------------
 REM Pede mensagem de commit
 REM --------------------------------------------------
 set /p COMMIT_MSG=Mensagem do commit (Enter = padrao): 
-if "!COMMIT_MSG!"=="" set COMMIT_MSG=chore: publica nova versao do agente
+if "!COMMIT_MSG!"=="" set COMMIT_MSG=chore: publica versao !NEW_BASE!
 
 echo.
 echo Commit : !COMMIT_MSG!
@@ -130,7 +176,7 @@ if /I "!OPEN_BROWSER!"=="S" (
 )
 
 echo.
-echo Pronto. O instalador sera publicado automaticamente em alguns minutos.
+echo Pronto. O instalador !NEW_BASE!.^<run^> sera publicado automaticamente em alguns minutos.
 echo.
 pause
 exit /b 0

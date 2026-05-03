@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vexnuvem-agent"
-version = "1.0.17"
+version = "1.0.18"
 description = "Agente de backup desktop com FTP failover e monitoramento remoto."
 readme = "README.md"
 requires-python = ">=3.10"

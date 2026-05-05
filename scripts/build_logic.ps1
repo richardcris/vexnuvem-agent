@@ -38,8 +38,23 @@ try {
     Write-Host "Gerando instalador versao $newVersion..."
     Write-Host ""
 
+    # Detecta o executavel Python: preferencia para venv local, senao usa o do PATH
+    $candidatePaths = @(
+        (Join-Path (Split-Path $PSScriptRoot) '.venv\Scripts\python.exe'),
+        (Join-Path (Split-Path $PSScriptRoot) 'venv\Scripts\python.exe')
+    )
+    $pythonExe = "python"
+    foreach ($candidate in $candidatePaths) {
+        if (Test-Path $candidate) {
+            $pythonExe = $candidate
+            break
+        }
+    }
+    Write-Host "Python detectado: $pythonExe"
+    Write-Host ""
+
     & "$PSScriptRoot\build_installer.ps1" `
-        -Python "c:/Users/richa/OneDrive/Desktop/Novo agente/.venv/Scripts/python.exe" `
+        -Python $pythonExe `
         -BuildVersion $newVersion
 
     if ($LASTEXITCODE -ne 0) { throw "build_installer.ps1 falhou com codigo $LASTEXITCODE" }

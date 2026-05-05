@@ -1163,8 +1163,12 @@ class MainWindow(QMainWindow):
         self.protection_threshold_spin.setValue(max(2, self.config.protection.suspicious_event_threshold))
         self.filters_edit.setText(filters_to_text(self.config.filters))
         self.api_enabled_checkbox.setChecked(self.config.api.enabled)
-        self.api_endpoint_edit.setText(self.config.api.endpoint)
-        self.api_token_edit.setText(self.config.api.token)
+        if self._api_unlocked:
+            self.api_endpoint_edit.setText(self.config.api.endpoint)
+            self.api_token_edit.setText(self.config.api.token)
+        else:
+            self.api_endpoint_edit.clear()
+            self.api_token_edit.clear()
         self.update_enabled_checkbox.setChecked(self.config.update.enabled)
         self.update_repository_edit.setText(self.config.update.repository or self.default_update_repository)
         self.update_token_edit.setText(self.config.update.token)
@@ -1271,9 +1275,11 @@ class MainWindow(QMainWindow):
         config.sources = [BackupSource.from_dict(item.to_dict()) for item in self.current_sources]
         config.filters = text_to_filters(self.filters_edit.text())
         config.ftp_servers = [FtpServerConfig.from_dict(item.to_dict()) for item in self.current_ftp_servers]
-        config.api.enabled = self.api_enabled_checkbox.isChecked()
-        config.api.endpoint = self.api_endpoint_edit.text().strip()
-        config.api.token = self.api_token_edit.text().strip()
+        if self._api_unlocked:
+            config.api.enabled = self.api_enabled_checkbox.isChecked()
+            config.api.endpoint = self.api_endpoint_edit.text().strip()
+            config.api.token = self.api_token_edit.text().strip()
+        # se bloqueado, mantém os valores já presentes em config (copiados de self.config via AppConfig.from_dict acima)
         config.update = UpdateConfig(
             enabled=self.update_enabled_checkbox.isChecked(),
             repository=self.update_repository_edit.text().strip(),
@@ -1469,7 +1475,9 @@ class MainWindow(QMainWindow):
 
     def _lock_api_section(self) -> None:
         self._api_unlocked = False
+        self.api_endpoint_edit.clear()
         self.api_endpoint_edit.setReadOnly(True)
+        self.api_token_edit.clear()
         self.api_token_edit.setReadOnly(True)
         self.api_enabled_checkbox.setEnabled(False)
         self.api_lock_button.setText("Desbloquear (Desenvolvedor)")
@@ -1480,6 +1488,11 @@ class MainWindow(QMainWindow):
         else:
             if DeveloperPasswordDialog(self).exec_and_verify():
                 self._api_unlocked = True
+                # Recarrega os valores reais do config salvo
+                current_config = self.config_manager.load()
+                self.api_enabled_checkbox.setChecked(current_config.api.enabled)
+                self.api_endpoint_edit.setText(current_config.api.endpoint)
+                self.api_token_edit.setText(current_config.api.token)
                 self.api_endpoint_edit.setReadOnly(False)
                 self.api_token_edit.setReadOnly(False)
                 self.api_enabled_checkbox.setEnabled(True)

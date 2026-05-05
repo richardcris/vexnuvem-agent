@@ -9,21 +9,21 @@ O workflow substitui automaticamente:
 
 ## Novidades desta versao
 
-- Os avisos do VexNuvem Agent agora usam contraste visual consistente em diferentes maquinas Windows.
-- Mensagens de sucesso, alerta e erro passam a aparecer com leitura clara mesmo quando o tema do sistema tenta aplicar um fundo diferente no dialogo.
+- Secao de Servidores FTP agora e protegida por senha de desenvolvedor: os botoes Novo Servidor, Editar e Remover so funcionam apos autenticacao.
+- Secao de Monitoramento Remoto (API Base44) tambem e protegida por senha de desenvolvedor: os campos ficam completamente ocultos ate que a senha seja informada.
+- Ao bloquear ou salvar, os campos de endpoint e token da API sao limpos da tela para que as informacoes nao fiquem expostas.
 
 ## Melhorias
 
-- O tema dos dialogos foi reforcado para manter o padrao visual escuro do app tambem nas caixas de mensagem.
-- Campos de detalhe dentro dos avisos agora seguem o mesmo esquema de cores do restante da interface.
+- Processo de atualizacao automatica corrigido: o app agora reabre corretamente apos instalar a nova versao.
+- Eliminado o loop infinito de download quando o instalador nao concluia a atualizacao.
+- O script de atualizacao aguarda o processo encerrar completamente antes de rodar o instalador, evitando conflito de arquivos em uso.
+- Script de build local detecta automaticamente o ambiente Python (`.venv`) sem precisar de caminho fixo.
 
 ## Correcoes
 
-- Corrigido o problema em que notificacoes e avisos podiam ficar com texto muito claro sobre fundo claro em outras maquinas.
-- Ajustado o estilo de `QDialog` e `QMessageBox` para evitar mensagens quase invisiveis em ambientes com tema diferente.
-
-## Observacoes
-
-- Depois de atualizar para a 1.0.14, confira os avisos de configuracao, backup e atualizacao para validar a nova legibilidade.
+- Corrigido o problema em que o app nao reabria automaticamente apos a atualizacao silenciosa.
+- Corrigido o loop onde, ao abrir o atalho da area de trabalho, o app voltava a baixar e instalar a mesma versao.
+- Corrigido o caminho Python hardcoded no script de build local que impedia gerar instalador em outras maquinas.
 
 **Comparacao completa:** {{COMPARE_URL}}

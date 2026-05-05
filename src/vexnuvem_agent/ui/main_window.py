@@ -59,7 +59,7 @@ from ..update_state import (
     save_pending_update_notice,
 )
 from ..update_service import GitHubUpdateService, UpdateInfo, UpdateCheckResult
-from .auth_dialog import AccessLoginDialog, create_logo_label, load_logo_pixmap
+from .auth_dialog import AccessLoginDialog, DeveloperPasswordDialog, create_logo_label, load_logo_pixmap
 
 
 WEEKDAY_LABELS = {
@@ -394,7 +394,9 @@ class MainWindow(QMainWindow):
         self.update_progress_dialog: UpdateProgressDialog | None = None
         self.update_prompted_version = ""
         self.pending_update_check_after_startup_backup = False
+        self._skip_startup_update_check: bool = False
         self.header_signature_animation: QParallelAnimationGroup | None = None
+        self._api_unlocked: bool = False
         self.api_presence_timer = QTimer(self)
         self.api_presence_timer.setInterval(5 * 60 * 1000)
         self.api_presence_timer.timeout.connect(self._send_presence_heartbeat)
@@ -866,16 +868,30 @@ class MainWindow(QMainWindow):
         api_group = QGroupBox("Monitoramento remoto")
         api_layout = QFormLayout(api_group)
         self.api_enabled_checkbox = QCheckBox("Enviar status para API Base44")
+        self.api_enabled_checkbox.setEnabled(False)
         self.api_endpoint_edit = QLineEdit()
         self.api_endpoint_edit.setPlaceholderText("https://SUA_URL/api ou https://SEU_APP.base44.app/functions")
+        self.api_endpoint_edit.setReadOnly(True)
         self.api_token_edit = QLineEdit()
         self.api_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.api_token_edit.setPlaceholderText("Opcional quando a API exigir autenticacao Bearer")
+        self.api_token_edit.setReadOnly(True)
         api_hint = QLabel(
             "A Base44 geralmente identifica o cliente pelo Agent ID configurado acima. Se a sua API exigir autenticacao, informe um token Bearer neste campo."
         )
         api_hint.setWordWrap(True)
         api_hint.setProperty("subtle", True)
+
+        # Lock/unlock button for the API section
+        api_lock_row = QWidget()
+        api_lock_layout = QHBoxLayout(api_lock_row)
+        api_lock_layout.setContentsMargins(0, 0, 0, 0)
+        api_lock_layout.setSpacing(10)
+        self.api_lock_button = QPushButton("Desbloquear (Desenvolvedor)")
+        self.api_lock_button.clicked.connect(self._toggle_api_lock)
+        api_lock_layout.addWidget(self.api_lock_button)
+        api_lock_layout.addStretch(1)
+
         api_actions_row = QWidget()
         api_actions_layout = QHBoxLayout(api_actions_row)
         api_actions_layout.setContentsMargins(0, 0, 0, 0)
@@ -890,6 +906,7 @@ class MainWindow(QMainWindow):
         self.settings_api_status_label = QLabel("Aguardando teste da API.")
         self.settings_api_status_label.setProperty("subtle", True)
         self.settings_api_status_label.setWordWrap(True)
+        api_layout.addRow("", api_lock_row)
         api_layout.addRow("", self.api_enabled_checkbox)
         api_layout.addRow("Endpoint base", self.api_endpoint_edit)
         api_layout.addRow("Token API", self.api_token_edit)
@@ -1209,6 +1226,7 @@ class MainWindow(QMainWindow):
             self.config = config
             self.scheduler_service.apply_config(config)
             self.protection_service.apply_config(config)
+            self._lock_api_section()
             self._load_config_into_form()
             self._refresh_views()
             QMessageBox.information(self, "VexNuvem", "Configuracoes salvas com sucesso.")
@@ -1355,6 +1373,8 @@ class MainWindow(QMainWindow):
         self._refresh_sources_list()
 
     def _add_ftp_server(self) -> None:
+        if not DeveloperPasswordDialog(self).exec_and_verify():
+            return
         dialog = FtpServerDialog(parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.current_ftp_servers.append(dialog.to_server())
@@ -1364,6 +1384,8 @@ class MainWindow(QMainWindow):
         row = self.ftp_table.currentRow()
         if row < 0:
             return
+        if not DeveloperPasswordDialog(self).exec_and_verify():
+            return
         dialog = FtpServerDialog(server=self.current_ftp_servers[row], parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.current_ftp_servers[row] = dialog.to_server()
@@ -1372,6 +1394,8 @@ class MainWindow(QMainWindow):
     def _remove_selected_ftp_server(self) -> None:
         row = self.ftp_table.currentRow()
         if row < 0:
+            return
+        if not DeveloperPasswordDialog(self).exec_and_verify():
             return
         self.current_ftp_servers.pop(row)
         self._refresh_ftp_table()
@@ -1442,6 +1466,24 @@ class MainWindow(QMainWindow):
     def _copy_client_id(self) -> None:
         QApplication.clipboard().setText(self.client_id_edit.text())
         QMessageBox.information(self, "VexNuvem", "Agent ID copiado para a area de transferencia.")
+
+    def _lock_api_section(self) -> None:
+        self._api_unlocked = False
+        self.api_endpoint_edit.setReadOnly(True)
+        self.api_token_edit.setReadOnly(True)
+        self.api_enabled_checkbox.setEnabled(False)
+        self.api_lock_button.setText("Desbloquear (Desenvolvedor)")
+
+    def _toggle_api_lock(self) -> None:
+        if self._api_unlocked:
+            self._lock_api_section()
+        else:
+            if DeveloperPasswordDialog(self).exec_and_verify():
+                self._api_unlocked = True
+                self.api_endpoint_edit.setReadOnly(False)
+                self.api_token_edit.setReadOnly(False)
+                self.api_enabled_checkbox.setEnabled(True)
+                self.api_lock_button.setText("Bloquear secao")
 
     def _test_api_connection(self) -> None:
         try:
@@ -1541,6 +1583,8 @@ class MainWindow(QMainWindow):
             return False
 
     def check_for_updates_on_startup(self) -> None:
+        if self._skip_startup_update_check:
+            return
         self._start_update_check(manual=False)
 
     def _check_for_updates_manually(self) -> None:
@@ -1750,11 +1794,15 @@ class MainWindow(QMainWindow):
 
         comparison = self.update_service._compare_versions(self.app_version, pending_notice.version)
         if comparison < 0:
-            # A versao instalada ainda e mais antiga que a do aviso pendente: o
-            # instalador nao concluiu a atualizacao (falhou silenciosamente, ou
-            # o atalho da area de trabalho ainda aponta para o exe antigo).
-            # Limpar o aviso aqui quebra o loop infinito de download.
+            # A versao instalada ainda e mais antiga que a do aviso pendente:
+            # o instalador nao concluiu a atualizacao. Limpa o aviso e bloqueia
+            # a verificacao automatica desta sessao para evitar loop infinito.
             clear_pending_update_notice()
+            self._skip_startup_update_check = True
+            self._set_update_status(
+                f"A atualizacao para {pending_notice.version} nao foi concluida na sessao anterior. "
+                "Use 'Verificar Atualizacoes' manualmente para tentar novamente."
+            )
             return
         if comparison > 0:
             clear_pending_update_notice()

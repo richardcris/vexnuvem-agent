@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -7,6 +8,14 @@ import keyring
 from keyring.errors import KeyringError
 
 from .paths import LOCAL_KEY_FILE
+
+# SHA-256 hash of the developer password (never store the plain-text password here)
+_DEVELOPER_PASSWORD_HASH = "183f9e2d36ca8926d00a58559aa1492f90b72be50c69399429cfeb153c6fc847"
+
+
+def verify_developer_password(password: str) -> bool:
+    """Return True if *password* matches the hardcoded developer password."""
+    return hashlib.sha256(password.encode("utf-8")).hexdigest() == _DEVELOPER_PASSWORD_HASH
 
 
 SERVICE_NAME = "VexNuvem Agent"

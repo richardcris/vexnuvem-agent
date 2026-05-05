@@ -8,6 +8,7 @@ from PySide6.QtGui import QFont, QIcon, QPixmap
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QVBoxLayout
 
 from ..models import AuthConfig
+from ..security import verify_developer_password
 
 
 def normalize_auth_username(value: str) -> str:
@@ -139,3 +140,82 @@ class AccessLoginDialog(QDialog):
             self.username_edit.selectAll()
         else:
             self.password_edit.setFocus()
+
+
+class DeveloperPasswordDialog(QDialog):
+    """Dialog that requires the hardcoded developer password to proceed."""
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        logo_pixmap = load_logo_pixmap()
+
+        self.setModal(True)
+        self.setWindowTitle("Acesso de Desenvolvedor")
+        self.resize(400, 340)
+        if not logo_pixmap.isNull():
+            self.setWindowIcon(QIcon(logo_pixmap))
+
+        logo_label = create_logo_label(logo_pixmap, max_width=200, max_height=100)
+
+        title_label = QLabel("Area restrita")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setFont(QFont("Bahnschrift", 16, QFont.Weight.Bold))
+
+        description_label = QLabel(
+            "Esta secao e protegida. Informe a senha de desenvolvedor para continuar."
+        )
+        description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        description_label.setWordWrap(True)
+        description_label.setProperty("subtle", True)
+
+        self.password_edit = QLineEdit()
+        self.password_edit.setPlaceholderText("Senha de desenvolvedor")
+        self.password_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.password_edit.returnPressed.connect(self._validate)
+
+        self.error_label = QLabel("")
+        self.error_label.setWordWrap(True)
+        self.error_label.setStyleSheet("color: #d64545;")
+        self.error_label.hide()
+
+        form = QFormLayout()
+        form.addRow("Senha", self.password_edit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        ok_button = buttons.button(QDialogButtonBox.StandardButton.Ok)
+        cancel_button = buttons.button(QDialogButtonBox.StandardButton.Cancel)
+        if ok_button is not None:
+            ok_button.setText("Liberar")
+        if cancel_button is not None:
+            cancel_button.setText("Cancelar")
+        buttons.accepted.connect(self._validate)
+        buttons.rejected.connect(self.reject)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(14)
+        layout.addWidget(logo_label)
+        layout.addWidget(title_label)
+        layout.addWidget(description_label)
+        layout.addSpacing(8)
+        layout.addLayout(form)
+        layout.addWidget(self.error_label)
+        layout.addStretch(1)
+        layout.addWidget(buttons)
+
+        self.password_edit.setFocus()
+
+    def _validate(self) -> None:
+        if verify_developer_password(self.password_edit.text()):
+            self.accept()
+            return
+        self.password_edit.clear()
+        self.error_label.setText("Senha de desenvolvedor incorreta.")
+        self.error_label.show()
+        self.password_edit.setFocus()
+
+    def exec_and_verify(self) -> bool:
+        """Show dialog and return True only if the correct password was entered."""
+        return self.exec() == QDialog.DialogCode.Accepted

@@ -1,6 +1,6 @@
 __all__ = ["__version__", "__github_repository__"]
 
-_BASE_VERSION = "1.0.24"
+_BASE_VERSION = "1.0.25"
 _BASE_GITHUB_REPOSITORY = "richardcris/vexnuvem-agent"
 
 try:

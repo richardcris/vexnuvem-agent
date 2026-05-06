@@ -167,10 +167,10 @@ class GitHubUpdateService:
         return launcher_path
 
     def launch_upgrade_launcher(self, launcher_path: Path) -> None:
-        creation_flags = 0
-        creation_flags |= getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        creation_flags |= getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-        creation_flags |= getattr(subprocess, "DETACHED_PROCESS", 0)
+        # CREATE_NO_WINDOW: CMD oculto COM console proprio.
+        # NAO usar DETACHED_PROCESS: sem console, comandos internos do CMD
+        # (tasklist | findstr, captura de ERRORLEVEL) quebram silenciosamente.
+        creation_flags = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
 
         try:
             subprocess.Popen(
@@ -359,9 +359,9 @@ class GitHubUpdateService:
             ")\r\n"
             "echo [%DATE% %TIME%] Executando instalador silencioso... >> \"%CMD_LOG%\"\r\n"
             "if \"%INSTALL_DIR%\"==\"\" (\r\n"
-            "  start /wait \"\" \"%INSTALLER%\" /SP- /SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /TASKS=desktopicon /LOG=\"%INSTALL_LOG%\"\r\n"
+            "  \"%INSTALLER%\" /SP- /SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /TASKS=desktopicon /LOG=\"%INSTALL_LOG%\"\r\n"
             ") else (\r\n"
-            "  start /wait \"\" \"%INSTALLER%\" /SP- /SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /TASKS=desktopicon /DIR=\"%INSTALL_DIR%\" /LOG=\"%INSTALL_LOG%\"\r\n"
+            "  \"%INSTALLER%\" /SP- /SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /TASKS=desktopicon /DIR=\"%INSTALL_DIR%\" /LOG=\"%INSTALL_LOG%\"\r\n"
             ")\r\n"
             "set \"INSTALL_EXIT=!ERRORLEVEL!\"\r\n"
             "echo [%DATE% %TIME%] Instalador encerrou com codigo: !INSTALL_EXIT! >> \"%CMD_LOG%\"\r\n"

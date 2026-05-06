@@ -3,9 +3,55 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .models import AppConfig
+from .models import AppConfig, ApiConfig, FtpServerConfig
 from .paths import CONFIG_FILE
 from .security import decrypt_text, encrypt_text
+
+# ---------------------------------------------------------------------------
+# Padroes de fabrica — aplicados apenas na primeira execucao (sem config.json)
+# ---------------------------------------------------------------------------
+_DEFAULT_API_ENDPOINT = "https://vex-cloud-pulse.base44.app/functions"
+
+_DEFAULT_FTP_HOSTS = [
+    "ftp58.nitroflare.com",
+    "ftp59.nitroflare.com",
+    "ftp60.nitroflare.com",
+    "ftp61.nitroflare.com",
+    "ftp62.nitroflare.com",
+    "ftp63.nitroflare.com",
+    "ftp64.nitroflare.com",
+    "ftp65.nitroflare.com",
+    "ftp66.nitroflare.com",
+    "ftp67.nitroflare.com",
+    "ftp68.nitroflare.com",
+    "ftp69.nitroflare.com",
+    "ftp72.nitroflare.com",
+    "ftp73.nitroflare.com",
+    "ftp76.nitroflare.com",
+    "ftp77.nitroflare.com",
+    "ftp78.nitroflare.com",
+    "ftp79.nitroflare.com",
+]
+
+
+def _apply_factory_defaults(config: AppConfig) -> None:
+    """Preenche servidores FTP e endpoint de API quando ainda nao configurados."""
+    if not config.ftp_servers:
+        config.ftp_servers = [
+            FtpServerConfig(
+                name=host.split(".")[0].upper(),
+                host=host,
+                port=21,
+                username="",
+                password="",
+                remote_dir="/",
+                passive_mode=True,
+                enabled=True,
+            )
+            for host in _DEFAULT_FTP_HOSTS
+        ]
+    if not config.api.endpoint:
+        config.api.endpoint = _DEFAULT_API_ENDPOINT
 
 
 def normalize_filters(filters: list[str]) -> list[str]:
@@ -42,6 +88,7 @@ class ConfigManager:
     def load(self) -> AppConfig:
         if not self.config_path.exists():
             config = AppConfig()
+            _apply_factory_defaults(config)
             self.save(config)
             return config
 
